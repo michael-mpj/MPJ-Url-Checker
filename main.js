@@ -6,15 +6,16 @@ const itemsPerPage = 12;
 const iframeContainer = document.getElementById('iframe-container');
 const loading = document.getElementById('loading-indicator');
 const errorMsg = document.getElementById('error-message');
-const navControls = document.getElementById('nav-controls');
+const navControls = document.getElementById('nav-controls'); // Now in navbar
 const prevBtn = document.getElementById('prev-btn');
 const nextBtn = document.getElementById('next-btn');
-const pageInfo = document.getElementById('page-info');
+const pageInfo = document.getElementById('page-info'); // Now in navbar
 const areaFilter = document.getElementById('area-filter');
 const jsonDisplay = document.getElementById('jsonDataDisplay');
 const saveRawBtn = document.getElementById('save-raw-btn');
 const downloadBtn = document.getElementById('download-json-btn');
 const uploadInput = document.getElementById('upload-json-input');
+const paginationContainer = document.getElementById('pagination-container'); // New: for Bootstrap pagination UL
 
 // Custom message box elements
 const messageBox = document.getElementById('messageBox');
@@ -59,6 +60,7 @@ function initializeData() {
   populateAreaFilter();
   renderPage();
   navControls.style.display = 'flex'; // Ensure nav controls are visible
+  paginationContainer.style.display = 'block'; // Ensure pagination container is visible
 }
 
 /**
@@ -118,13 +120,29 @@ function renderPage() {
     urlEl.textContent = item.url;
     urlEl.title = item.url;
 
+    // Create a button group for actions
+    const btnGroup = document.createElement('div');
+    btnGroup.className = 'btn-group mt-2 w-100'; // w-100 to make it full width
+    btnGroup.setAttribute('role', 'group');
+    btnGroup.setAttribute('aria-label', 'URL Actions');
+
+    // Refresh URL button
+    const refreshBtn = document.createElement('button');
+    refreshBtn.type = 'button';
+    refreshBtn.className = 'btn btn-sm btn-outline-secondary';
+    refreshBtn.textContent = 'Refresh URL';
+
+    // Open in New Tab button
     const openBtn = document.createElement('a');
     openBtn.href = item.url;
     openBtn.target = '_blank'; // Open in new tab
-    openBtn.className = 'btn btn-sm btn-outline-primary mt-2';
+    openBtn.className = 'btn btn-sm btn-outline-primary';
     openBtn.textContent = 'Open in New Tab';
 
-    header.append(labelEl, areaEl, urlEl, openBtn); // Append elements to the header
+    // Append buttons to the group
+    btnGroup.append(refreshBtn, openBtn);
+
+    header.append(labelEl, areaEl, urlEl, btnGroup); // Append the created header and button group
 
     const body = document.createElement('div');
     body.className = 'card-body p-0';
@@ -150,6 +168,16 @@ function renderPage() {
       iframe.style.visibility = 'visible';
     });
 
+    // Add refresh functionality to the refresh button
+    refreshBtn.addEventListener('click', () => {
+      spinner.style.display = 'block'; // Show spinner
+      iframe.style.visibility = 'hidden'; // Hide iframe
+      iframe.src = 'about:blank'; // Clear iframe content to force reload
+      setTimeout(() => {
+        iframe.src = item.url; // Reload content
+      }, 10); // Small delay to ensure the iframe is cleared before reloading
+    });
+
     wrapper.append(spinner, iframe);
     body.appendChild(wrapper);
     card.appendChild(header); // Append the created header
@@ -166,29 +194,58 @@ function renderPage() {
  */
 function updatePagination() {
   const totalPages = Math.ceil(filteredUrls.length / itemsPerPage);
-  pageInfo.textContent = `Page ${currentPage} of ${totalPages || 1}`; // Handle 0 total pages
-  prevBtn.disabled = currentPage === 1;
-  nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+  pageInfo.textContent = `Page ${currentPage} of ${totalPages || 1}`; // Update navbar page info
+
+  const paginationUl = paginationContainer.querySelector('.pagination');
+  paginationUl.innerHTML = ''; // Clear existing pagination items
+
+  // Previous button
+  const prevLi = document.createElement('li');
+  prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+  prevLi.innerHTML = `<a class="page-link" href="#" tabindex="-1" aria-disabled="${currentPage === 1}">Previous</a>`;
+  prevLi.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (currentPage > 1) {
+      currentPage--;
+      renderPage();
+      window.scrollTo(0, 0);
+    }
+  });
+  paginationUl.appendChild(prevLi);
+
+  // Page numbers
+  for (let i = 1; i <= totalPages; i++) {
+    const pageLi = document.createElement('li');
+    pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
+    pageLi.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+    pageLi.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (i !== currentPage) {
+        currentPage = i;
+        renderPage();
+        window.scrollTo(0, 0);
+      }
+    });
+    paginationUl.appendChild(pageLi);
+  }
+
+  // Next button
+  const nextLi = document.createElement('li');
+  nextLi.className = `page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}`;
+  nextLi.innerHTML = `<a class="page-link" href="#" tabindex="-1" aria-disabled="${currentPage === totalPages || totalPages === 0}">Next</a>`;
+  nextLi.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (currentPage < totalPages) {
+      currentPage++;
+      renderPage();
+      window.scrollTo(0, 0);
+    }
+  });
+  paginationUl.appendChild(nextLi);
 }
 
-// Event Listeners
-prevBtn.addEventListener('click', () => {
-  if (currentPage > 1) {
-    currentPage--;
-    renderPage();
-    window.scrollTo(0, 0); // Use window.scrollTo for clarity
-  }
-});
 
-nextBtn.addEventListener('click', () => {
-  const totalPages = Math.ceil(filteredUrls.length / itemsPerPage); // Use filteredUrls for total pages
-  if (currentPage < totalPages) {
-    currentPage++;
-    renderPage();
-    window.scrollTo(0, 0); // Use window.scrollTo for clarity
-  }
-});
-
+// Event Listeners (simplified as pagination is now handled by updatePagination)
 areaFilter.addEventListener('change', () => {
   const selectedArea = areaFilter.value;
   if (selectedArea === 'all') {
