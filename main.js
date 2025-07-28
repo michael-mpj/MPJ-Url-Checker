@@ -103,9 +103,9 @@ function renderPage() {
     const card = document.createElement('div');
     card.className = 'card h-100';
 
-    // Create header for the card
-    const header = document.createElement('div');
-    header.className = 'card-header';
+    // Create footer for the card (formerly header)
+    const footer = document.createElement('div');
+    footer.className = 'card-footer bg-white border-top'; // Changed to card-footer
 
     const labelEl = document.createElement('h6');
     labelEl.className = 'card-title mb-1 text-primary';
@@ -142,7 +142,7 @@ function renderPage() {
     // Append buttons to the group
     btnGroup.append(refreshBtn, openBtn);
 
-    header.append(labelEl, areaEl, urlEl, btnGroup); // Append the created header and button group
+    footer.append(labelEl, areaEl, urlEl, btnGroup); // Append elements to the footer
 
     const body = document.createElement('div');
     body.className = 'card-body p-0';
@@ -180,13 +180,23 @@ function renderPage() {
 
     wrapper.append(spinner, iframe);
     body.appendChild(wrapper);
-    card.appendChild(header); // Append the created header
-    card.appendChild(body);
+    card.appendChild(body); // Append the body (with iframe) first
+    card.appendChild(footer); // Append the created footer last
     col.appendChild(card);
     iframeContainer.appendChild(col);
   });
 
   updatePagination();
+}
+
+/**
+ * Handles changing the current page and re-rendering.
+ * @param {number} page - The page number to navigate to.
+ */
+function goToPage(page) {
+  currentPage = page;
+  renderPage();
+  window.scrollTo(0, 0); // Scroll to top for clarity
 }
 
 /**
@@ -199,21 +209,19 @@ function updatePagination() {
   const paginationUl = paginationContainer.querySelector('.pagination');
   paginationUl.innerHTML = ''; // Clear existing pagination items
 
-  // Previous button
+  // Previous button for bottom pagination
   const prevLi = document.createElement('li');
   prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
   prevLi.innerHTML = `<a class="page-link" href="#" tabindex="-1" aria-disabled="${currentPage === 1}">Previous</a>`;
   prevLi.addEventListener('click', (e) => {
     e.preventDefault();
     if (currentPage > 1) {
-      currentPage--;
-      renderPage();
-      window.scrollTo(0, 0);
+      goToPage(currentPage - 1);
     }
   });
   paginationUl.appendChild(prevLi);
 
-  // Page numbers
+  // Page numbers for bottom pagination
   for (let i = 1; i <= totalPages; i++) {
     const pageLi = document.createElement('li');
     pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
@@ -221,31 +229,44 @@ function updatePagination() {
     pageLi.addEventListener('click', (e) => {
       e.preventDefault();
       if (i !== currentPage) {
-        currentPage = i;
-        renderPage();
-        window.scrollTo(0, 0);
+        goToPage(i);
       }
     });
     paginationUl.appendChild(pageLi);
   }
 
-  // Next button
+  // Next button for bottom pagination
   const nextLi = document.createElement('li');
   nextLi.className = `page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}`;
   nextLi.innerHTML = `<a class="page-link" href="#" tabindex="-1" aria-disabled="${currentPage === totalPages || totalPages === 0}">Next</a>`;
   nextLi.addEventListener('click', (e) => {
     e.preventDefault();
     if (currentPage < totalPages) {
-      currentPage++;
-      renderPage();
-      window.scrollTo(0, 0);
+      goToPage(currentPage + 1);
     }
   });
   paginationUl.appendChild(nextLi);
+
+  // Update navbar buttons' disabled state
+  prevBtn.disabled = currentPage === 1;
+  nextBtn.disabled = currentPage === totalPages || totalPages === 0;
 }
 
 
-// Event Listeners (simplified as pagination is now handled by updatePagination)
+// Event Listeners for navbar buttons
+prevBtn.addEventListener('click', () => {
+  if (currentPage > 1) {
+    goToPage(currentPage - 1);
+  }
+});
+
+nextBtn.addEventListener('click', () => {
+  const totalPages = Math.ceil(filteredUrls.length / itemsPerPage);
+  if (currentPage < totalPages) {
+    goToPage(currentPage + 1);
+  }
+});
+
 areaFilter.addEventListener('change', () => {
   const selectedArea = areaFilter.value;
   if (selectedArea === 'all') {
