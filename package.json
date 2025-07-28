@@ -1,0 +1,21 @@
+{
+  "name": "mpj-url-checker",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/michael-mpj/MPJ-Url-Checker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/michael-mpj/MPJ-Url-Checker/issues"
+  },
+  "homepage": "https://github.com/michael-mpj/MPJ-Url-Checker#readme",
+  "description": ""
+}
