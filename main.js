@@ -8,6 +8,19 @@ let currentPage = 1; // Current page number
 
 // DOM Elements - Cached for performance
 const iframeContainer = document.getElementById('iframe-container');
+// Shared IntersectionObserver for all iframes
+const iframeObserver = new IntersectionObserver((entries, obs) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const targetIframe = entry.target;
+      targetIframe.src = targetIframe.getAttribute('data-src'); // Load the actual URL
+      obs.unobserve(targetIframe); // Stop observing once loaded
+    }
+  });
+}, {
+  rootMargin: '0px',
+  threshold: 0.1
+});
 const loading = document.getElementById('loading-indicator');
 const errorMsg = document.getElementById('error-message');
 const navControls = document.getElementById('nav-controls');
@@ -233,21 +246,8 @@ function createUrlCard(item) {
   spinner.role = 'status';
   spinner.innerHTML = '<span class="visually-hidden">Loading...</span>';
 
-  // Intersection Observer for lazy loading iframes
-  const observer = new IntersectionObserver((entries, obs) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const targetIframe = entry.target;
-        targetIframe.src = targetIframe.getAttribute('data-src'); // Load the actual URL
-        obs.unobserve(targetIframe); // Stop observing once loaded
-      }
-    });
-  }, {
-    rootMargin: '0px', // No extra margin
-    threshold: 0.1 // Trigger when 10% of the iframe is visible
-  });
-
-  observer.observe(iframe); // Start observing the iframe
+  // Use shared IntersectionObserver
+  iframeObserver.observe(iframe);
 
   iframe.addEventListener('load', () => {
     spinner.style.display = 'none';
@@ -255,17 +255,26 @@ function createUrlCard(item) {
   });
 
   // Handle potential iframe load errors (e.g., cross-origin restrictions)
+  // Overlay error message instead of replacing wrapper content
   iframe.addEventListener('error', () => {
     spinner.style.display = 'none';
     iframe.style.visibility = 'visible';
-    // Display a fallback message within the iframe wrapper
-    wrapper.innerHTML = `
-      <div class="alert alert-warning text-center m-2" role="alert">
+    // Only add overlay if not already present
+    if (!wrapper.querySelector('.iframe-error-overlay')) {
+      const overlay = document.createElement('div');
+      overlay.className = 'iframe-error-overlay alert alert-warning text-center m-2 position-absolute w-100 h-100 d-flex flex-column justify-content-center align-items-center';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.background = 'rgba(255,255,255,0.95)';
+      overlay.style.zIndex = '20';
+      overlay.setAttribute('role', 'alert');
+      overlay.innerHTML = `
         <i class="fas fa-exclamation-triangle me-1"></i>
-        Cannot display content due to security policies (X-Frame-Options).
-        <br><small>Try "Open in New Tab".</small>
-      </div>
-    `;
+        Cannot display content due to security policies (X-Frame-Options).<br>
+        <small>Try \"Open in New Tab\".</small>
+      `;
+      wrapper.appendChild(overlay);
+    }
   });
 
   refreshBtn.addEventListener('click', () => {
