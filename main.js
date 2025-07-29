@@ -1,11 +1,12 @@
-// --- main.js ---
-// --- Constants & DOM Elements ---
-const ITEMS_PER_PAGE = 12;
-let allUrls = [];
-let filteredUrls = [];
-let currentPage = 1;
+// --- main.js - Better Version ---
 
-// DOM Elements
+// --- Constants & DOM Elements ---
+const ITEMS_PER_PAGE = 12; // Number of items to display per page
+let allUrls = []; // Stores all fetched URLs
+let filteredUrls = []; // Stores URLs after applying filters
+let currentPage = 1; // Current page number
+
+// DOM Elements - Cached for performance
 const iframeContainer = document.getElementById('iframe-container');
 const loading = document.getElementById('loading-indicator');
 const errorMsg = document.getElementById('error-message');
@@ -25,102 +26,167 @@ const messageCloseBtn = document.getElementById('messageCloseBtn');
 
 // --- Utility Functions ---
 
+/**
+ * Displays a temporary message to the user.
+ * @param {string} message - The message content.
+ * @param {'info'|'success'|'warning'|'danger'} type - The type of message (for Bootstrap styling).
+ * @param {number} duration - How long the message should be visible in milliseconds.
+ */
 function showMessage(message, type = 'info', duration = 3000) {
   messageText.textContent = message;
-  // Use classList for cleaner class management
   messageBox.className = `alert alert-${type} position-fixed top-0 start-50 translate-middle-x mt-3 d-flex align-items-center`;
   messageBox.classList.remove('d-none');
-  setTimeout(() => messageBox.classList.add('d-none'), duration);
+  messageBox.setAttribute('aria-live', 'polite'); // Announce changes to screen readers
+  setTimeout(() => {
+    messageBox.classList.add('d-none');
+    messageBox.removeAttribute('aria-live');
+  }, duration);
 }
 
+/**
+ * Saves the current 'allUrls' array to localStorage.
+ */
 function saveToLocalStorage() {
-  localStorage.setItem('iframeData', JSON.stringify(allUrls));
+  try {
+    localStorage.setItem('iframeData', JSON.stringify(allUrls));
+    // console.log("Data saved to localStorage.");
+  } catch (e) {
+    console.error("Failed to save to localStorage:", e);
+    showMessage('Failed to save data locally. Your browser might be in private mode or storage is full.', 'warning');
+  }
 }
 
+/**
+ * Loads URL data from localStorage.
+ * @returns {Array|null} The parsed array of URLs or null if not found/error.
+ */
 function loadFromLocalStorage() {
   try {
     const saved = localStorage.getItem('iframeData');
     return saved ? JSON.parse(saved) : null;
-  } catch {
+  } catch (e) {
+    console.error("Failed to load from localStorage:", e);
+    showMessage('Corrupted data found in local storage. Loading default data.', 'danger');
     return null;
   }
 }
 
 // --- Data Fetching & Initialization ---
 
+/**
+ * Fetches URLs from 'urldata.json' or uses a fallback if fetch fails.
+ */
 async function fetchUrls() {
+  loading.classList.remove('d-none'); // Show loading indicator
+  errorMsg.classList.add('d-none'); // Hide any previous errors
+
   try {
     const res = await fetch('urldata.json');
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    if (!res.ok) {
+      // More specific error for HTTP issues
+      throw new Error(`HTTP error! Status: ${res.status}. Please ensure 'urldata.json' exists on the server.`);
+    }
 
-    // Check if the server returned JSON, not HTML or something else
     const contentType = res.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
-      throw new TypeError("Received non-JSON response. Please ensure 'urldata.json' exists and is served correctly.");
+      throw new TypeError("Received non-JSON response. Please ensure 'urldata.json' is a valid JSON file.");
     }
 
     allUrls = await res.json();
+    if (!Array.isArray(allUrls)) {
+      throw new TypeError("JSON data is not an array. Expected an array of URL objects.");
+    }
     saveToLocalStorage();
     initializeData();
   } catch (e) {
+    console.error("Error fetching URLs:", e);
     errorMsg.classList.remove('d-none');
-    document.getElementById('error-text').textContent = `Failed to load URLs: ${e.message}`;
+    document.getElementById('error-text').textContent = `Failed to load URLs: ${e.message}.`;
+    // Optionally load a default empty state or show specific instruction
+    allUrls = []; // Clear any potentially bad data
+    initializeData(); // Initialize with empty data to allow user interaction
   } finally {
-    loading.classList.add('d-none');
+    loading.classList.add('d-none'); // Hide loading indicator
   }
 }
 
+/**
+ * Initializes/resets the data, populates filters, and renders the first page.
+ */
 function initializeData() {
-  filteredUrls = [...allUrls];
-  currentPage = 1;
-  populateAreaFilter();
-  renderPage();
-  navControls.style.display = 'flex';
-  paginationContainer.style.display = 'block';
+  filteredUrls = [...allUrls]; // Reset filteredUrls to allUrls
+  currentPage = 1; // Go to the first page
+  populateAreaFilter(); // Repopulate filter based on allUrls
+  renderPage(); // Render the current page
+  navControls.style.display = 'flex'; // Show navigation controls
+  paginationContainer.style.display = 'block'; // Show pagination
+  // Ensure the modal's textarea is updated if it's currently open
+  if (jsonDisplay && jsonDisplay.closest('.modal.show')) {
+    jsonDisplay.value = JSON.stringify(allUrls, null, 2);
+  }
 }
 
 // --- UI Rendering ---
 
+/**
+ * Populates the area filter dropdown with unique areas from allUrls.
+ */
 function populateAreaFilter() {
   const areas = Array.from(new Set(allUrls.map(item => item.area).filter(Boolean)));
+  // Sort areas alphabetically for better UX
+  areas.sort((a, b) => a.localeCompare(b));
   areaFilter.innerHTML = '<option value="all">All Areas</option>' +
-    areas.map(area => `<option value="${area}">${area}</option>`).join('');
+    areas.map(area => `<option value="${escapeHTML(area)}">${escapeHTML(area)}</option>`).join('');
+  // Set the filter back to 'all' or the currently selected value if it still exists
+  areaFilter.value = 'all'; // Reset filter on data change
 }
 
+/**
+ * Renders the current page's URLs into the iframe container.
+ * Implements lazy loading for iframes.
+ */
 function renderPage() {
-  iframeContainer.innerHTML = '';
+  iframeContainer.innerHTML = ''; // Clear previous iframes
   const start = (currentPage - 1) * ITEMS_PER_PAGE;
   const pageItems = filteredUrls.slice(start, start + ITEMS_PER_PAGE);
 
   if (filteredUrls.length === 0) {
-    iframeContainer.innerHTML = '<p class="text-center text-muted col-12">No URLs found for the selected filter.</p>';
+    iframeContainer.innerHTML = '<p class="text-center text-muted col-12">No URLs found for the selected filter. Try adjusting your filter or adding new data.</p>';
     updatePagination();
     return;
   }
+
+  // Handle case where filtering leads to an empty page (e.g., last item of a page is filtered out)
   if (pageItems.length === 0 && currentPage > 1) {
-    currentPage--;
-    renderPage();
+    currentPage--; // Go back to the previous page
+    renderPage(); // Re-render
     return;
   }
 
   pageItems.forEach(item => iframeContainer.appendChild(createUrlCard(item)));
-  updatePagination();
+  updatePagination(); // Update pagination controls
 }
 
+/**
+ * Creates a Bootstrap card element for a given URL item.
+ * @param {object} item - The URL object containing label, area, and url.
+ * @returns {HTMLElement} The created card element.
+ */
 function createUrlCard(item) {
   const col = document.createElement('div');
   col.className = 'col';
 
   const card = document.createElement('div');
-  card.className = 'card h-100';
+  card.className = 'card h-100 shadow-sm'; // Added shadow for better visual
 
   // Card Footer
   const footer = document.createElement('div');
   footer.className = 'card-footer bg-white border-top';
+  // Use text-break for long URLs and `text-muted` for smaller text
   footer.innerHTML = `
-    <h6 class="card-title mb-1 text-primary">${item.label || 'No Label'}</h6>
-    <p class="card-text small mb-1"><strong>Area:</strong> ${item.area || 'N/A'}</p>
-    <p class="card-text small text-muted text-truncate mb-2" title="${item.url}">${item.url}</p>
+    <h6 class="card-title mb-1 text-primary">${escapeHTML(item.label || 'No Label')}</h6>
+    <p class="card-text small mb-1"><strong>Area:</strong> ${escapeHTML(item.area || 'N/A')}</p>
+    <p class="card-text small text-muted text-truncate mb-2" title="${escapeHTML(item.url)}">${escapeHTML(item.url)}</p>
   `;
 
   // Button Group
@@ -133,6 +199,7 @@ function createUrlCard(item) {
   refreshBtn.type = 'button';
   refreshBtn.className = 'btn btn-sm btn-outline-secondary';
   refreshBtn.textContent = 'Refresh URL';
+  refreshBtn.setAttribute('aria-label', `Refresh ${item.label || item.url}`);
 
   // Open in New Tab Button
   const openBtn = document.createElement('a');
@@ -140,6 +207,8 @@ function createUrlCard(item) {
   openBtn.target = '_blank';
   openBtn.className = 'btn btn-sm btn-outline-primary';
   openBtn.textContent = 'Open in New Tab';
+  openBtn.setAttribute('aria-label', `Open ${item.label || item.url} in new tab`);
+  openBtn.setAttribute('rel', 'noopener noreferrer'); // Security improvement
 
   btnGroup.append(refreshBtn, openBtn);
   footer.appendChild(btnGroup);
@@ -152,25 +221,60 @@ function createUrlCard(item) {
   wrapper.className = 'iframe-wrapper';
 
   const iframe = document.createElement('iframe');
-  iframe.src = item.url;
+  // Initial src is set to about:blank to prevent immediate loading
+  iframe.src = 'about:blank';
   iframe.title = item.label || item.url;
   iframe.style.visibility = 'hidden';
+  iframe.loading = 'lazy'; // Native lazy loading for iframes
+  iframe.setAttribute('data-src', item.url); // Store the actual URL in a data attribute
 
   const spinner = document.createElement('div');
   spinner.className = 'spinner-border text-primary position-absolute top-50 start-50 translate-middle';
   spinner.role = 'status';
   spinner.innerHTML = '<span class="visually-hidden">Loading...</span>';
 
+  // Intersection Observer for lazy loading iframes
+  const observer = new IntersectionObserver((entries, obs) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const targetIframe = entry.target;
+        targetIframe.src = targetIframe.getAttribute('data-src'); // Load the actual URL
+        obs.unobserve(targetIframe); // Stop observing once loaded
+      }
+    });
+  }, {
+    rootMargin: '0px', // No extra margin
+    threshold: 0.1 // Trigger when 10% of the iframe is visible
+  });
+
+  observer.observe(iframe); // Start observing the iframe
+
   iframe.addEventListener('load', () => {
     spinner.style.display = 'none';
     iframe.style.visibility = 'visible';
   });
 
+  // Handle potential iframe load errors (e.g., cross-origin restrictions)
+  iframe.addEventListener('error', () => {
+    spinner.style.display = 'none';
+    iframe.style.visibility = 'visible';
+    // Display a fallback message within the iframe wrapper
+    wrapper.innerHTML = `
+      <div class="alert alert-warning text-center m-2" role="alert">
+        <i class="fas fa-exclamation-triangle me-1"></i>
+        Cannot display content due to security policies (X-Frame-Options).
+        <br><small>Try "Open in New Tab".</small>
+      </div>
+    `;
+  });
+
   refreshBtn.addEventListener('click', () => {
     spinner.style.display = 'block';
     iframe.style.visibility = 'hidden';
-    iframe.src = 'about:blank';
-    setTimeout(() => { iframe.src = item.url; }, 10);
+    iframe.src = 'about:blank'; // Reset iframe src
+    setTimeout(() => {
+      iframe.src = item.url; // Reload content
+    }, 10);
   });
 
   wrapper.append(spinner, iframe);
@@ -180,121 +284,211 @@ function createUrlCard(item) {
   return col;
 }
 
+/**
+ * Updates the pagination controls (page info and page number buttons).
+ */
 function updatePagination() {
   const totalPages = Math.max(1, Math.ceil(filteredUrls.length / ITEMS_PER_PAGE));
   pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
 
   const paginationUl = paginationContainer.querySelector('.pagination');
-  paginationUl.innerHTML = '';
+  paginationUl.innerHTML = ''; // Clear existing page numbers
 
-  // Previous
+  // Previous button
   const prevLi = document.createElement('li');
   prevLi.className = `page-item${currentPage === 1 ? ' disabled' : ''}`;
-  prevLi.innerHTML = `<a class="page-link" href="#">Previous</a>`;
-  prevLi.onclick = e => { e.preventDefault(); if (currentPage > 1) goToPage(currentPage - 1); };
+  prevLi.innerHTML = `<a class="page-link" href="#" aria-label="Previous page">Previous</a>`;
+  prevLi.onclick = (e) => {
+    e.preventDefault();
+    if (currentPage > 1) goToPage(currentPage - 1);
+  };
   paginationUl.appendChild(prevLi);
 
-  // Page Numbers (show max 5 pages for brevity)
-  let start = Math.max(1, currentPage - 2);
-  let end = Math.min(totalPages, start + 4);
-  if (end - start < 4) start = Math.max(1, end - 4);
-  for (let i = start; i <= end; i++) {
+  // Page Numbers (dynamically generate a range, e.g., current -2 to current +2)
+  let startPage = Math.max(1, currentPage - 2);
+  let endPage = Math.min(totalPages, currentPage + 2);
+
+  if (endPage - startPage < 4) { // Adjust range if near start or end
+    if (startPage === 1) endPage = Math.min(totalPages, 5);
+    if (endPage === totalPages) startPage = Math.max(1, totalPages - 4);
+  }
+
+  // Add ellipsis if needed at the beginning
+  if (startPage > 1) {
+    const ellipsisLi = document.createElement('li');
+    ellipsisLi.className = 'page-item disabled';
+    ellipsisLi.innerHTML = `<span class="page-link">...</span>`;
+    paginationUl.appendChild(ellipsisLi);
+  }
+
+  for (let i = startPage; i <= endPage; i++) {
     const pageLi = document.createElement('li');
     pageLi.className = `page-item${i === currentPage ? ' active' : ''}`;
-    pageLi.innerHTML = `<a class="page-link" href="#">${i}</a>`;
-    pageLi.onclick = e => { e.preventDefault(); if (i !== currentPage) goToPage(i); };
+    pageLi.innerHTML = `<a class="page-link" href="#" aria-label="Go to page ${i}">${i}</a>`;
+    pageLi.onclick = (e) => {
+      e.preventDefault();
+      if (i !== currentPage) goToPage(i);
+    };
     paginationUl.appendChild(pageLi);
   }
 
-  // Next
+  // Add ellipsis if needed at the end
+  if (endPage < totalPages) {
+    const ellipsisLi = document.createElement('li');
+    ellipsisLi.className = 'page-item disabled';
+    ellipsisLi.innerHTML = `<span class="page-link">...</span>`;
+    paginationUl.appendChild(ellipsisLi);
+  }
+
+  // Next button
   const nextLi = document.createElement('li');
   nextLi.className = `page-item${currentPage === totalPages ? ' disabled' : ''}`;
-  nextLi.innerHTML = `<a class="page-link" href="#">Next</a>`;
-  nextLi.onclick = e => { e.preventDefault(); if (currentPage < totalPages) goToPage(currentPage + 1); };
+  nextLi.innerHTML = `<a class="page-link" href="#" aria-label="Next page">Next</a>`;
+  nextLi.onclick = (e) => {
+    e.preventDefault();
+    if (currentPage < totalPages) goToPage(currentPage + 1);
+  };
   paginationUl.appendChild(nextLi);
 
+  // Disable/enable prev/next buttons directly in the navbar controls
   prevBtn.disabled = currentPage === 1;
   nextBtn.disabled = currentPage === totalPages;
 }
 
+/**
+ * Changes the current page and re-renders the content.
+ * @param {number} page - The page number to navigate to.
+ */
 function goToPage(page) {
-  currentPage = page;
-  renderPage();
-  window.scrollTo(0, 0);
+  const totalPages = Math.max(1, Math.ceil(filteredUrls.length / ITEMS_PER_PAGE));
+  if (page >= 1 && page <= totalPages) {
+    currentPage = page;
+    renderPage();
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    }); // Smooth scroll to top
+  }
+}
+
+/**
+ * Escapes HTML characters to prevent XSS.
+ * @param {string} str - The string to escape.
+ * @returns {string} The escaped string.
+ */
+function escapeHTML(str) {
+  if (typeof str !== 'string') return '';
+  const div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
 }
 
 // --- Event Listeners ---
 
-prevBtn.onclick = () => currentPage > 1 && goToPage(currentPage - 1);
-nextBtn.onclick = () => {
-  const totalPages = Math.ceil(filteredUrls.length / ITEMS_PER_PAGE);
-  if (currentPage < totalPages) goToPage(currentPage + 1);
-};
+prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
+nextBtn.addEventListener('click', () => goToPage(currentPage + 1));
 
-areaFilter.onchange = () => {
-  filteredUrls = areaFilter.value === 'all'
-    ? [...allUrls]
-    : allUrls.filter(item => item.area === areaFilter.value);
-  currentPage = 1;
+areaFilter.addEventListener('change', () => {
+  const selectedArea = areaFilter.value;
+  filteredUrls = selectedArea === 'all' ?
+    [...allUrls] :
+    allUrls.filter(item => item.area === selectedArea);
+  currentPage = 1; // Reset to first page when filter changes
   renderPage();
-};
+});
 
-document.querySelector('[data-bs-target="#rawDataModal"]').onclick = () => {
+document.querySelector('[data-bs-target="#rawDataModal"]').addEventListener('click', () => {
   jsonDisplay.value = JSON.stringify(allUrls, null, 2);
-};
+});
 
-saveRawBtn.onclick = () => {
+saveRawBtn.addEventListener('click', () => {
   try {
-    allUrls = JSON.parse(jsonDisplay.value);
-    saveToLocalStorage();
-    initializeData();
-    showMessage('Data updated successfully.', 'success');
-  } catch {
-    showMessage('Invalid JSON format. Please fix and try again.', 'danger');
+    const parsedData = JSON.parse(jsonDisplay.value);
+    if (!Array.isArray(parsedData)) {
+      throw new Error('Parsed data is not a valid JSON array.');
+    }
+    allUrls = parsedData; // Update global data
+    saveToLocalStorage(); // Save updated data
+    initializeData(); // Re-initialize UI with new data
+    showMessage('Data updated successfully from raw JSON.', 'success');
+    // Close the modal after successful save
+    const rawDataModal = bootstrap.Modal.getInstance(document.getElementById('rawDataModal'));
+    if (rawDataModal) rawDataModal.hide();
+  } catch (e) {
+    console.error("Error saving raw JSON:", e);
+    showMessage(`Invalid JSON format: ${e.message}. Please fix and try again.`, 'danger', 5000);
   }
-};
+});
 
-downloadBtn.onclick = () => {
-  const blob = new Blob([JSON.stringify(allUrls, null, 2)], { type: 'application/json' });
+downloadBtn.addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(allUrls, null, 2)], {
+    type: 'application/json'
+  });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'urldata.json';
+  a.download = 'jbr_urldata.json'; // More descriptive filename
+  document.body.appendChild(a); // Append to body for Firefox compatibility
   a.click();
+  document.body.removeChild(a); // Clean up
   URL.revokeObjectURL(url);
-};
+  showMessage('JSON data downloaded successfully.', 'info');
+});
 
-uploadInput.onchange = e => {
+uploadInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
-  if (!file) return;
+  if (!file) {
+    showMessage('No file selected.', 'warning');
+    return;
+  }
+  if (file.type !== 'application/json') {
+    showMessage('Invalid file type. Please upload a JSON file (.json).', 'danger');
+    // Clear the input to allow re-uploading the same file if it was an accident
+    e.target.value = '';
+    return;
+  }
+
   const reader = new FileReader();
-  reader.onload = function (e) {
+  reader.onload = function(event) {
     try {
-      allUrls = JSON.parse(e.target.result);
-      // saveToLocalStorage already calls localStorage.setItem, so the next line is redundant.
+      const uploadedData = JSON.parse(event.target.result);
+      if (!Array.isArray(uploadedData)) {
+        throw new Error('Uploaded JSON is not a valid array.');
+      }
+      allUrls = uploadedData;
       saveToLocalStorage();
       initializeData();
       showMessage('Data loaded from uploaded file.', 'success');
-      document.querySelector('.modal.show .btn-close')?.click();
-    } catch {
-      showMessage('Error parsing uploaded file.', 'danger');
+      // Programmatically close the modal if it's open
+      const rawDataModal = bootstrap.Modal.getInstance(document.getElementById('rawDataModal'));
+      if (rawDataModal) rawDataModal.hide();
+      e.target.value = ''; // Clear input for next upload
+    } catch (error) {
+      console.error("Error parsing uploaded file:", error);
+      showMessage(`Error parsing uploaded file: ${error.message}. Please ensure it's valid JSON.`, 'danger', 5000);
+      e.target.value = ''; // Clear input on error
     }
   };
+  reader.onerror = () => {
+    showMessage('Error reading file. Please try again.', 'danger');
+    e.target.value = ''; // Clear input on error
+  };
   reader.readAsText(file);
-};
+});
 
 // Allow user to close the message box manually
-messageCloseBtn.onclick = () => messageBox.classList.add('d-none');
+messageCloseBtn.addEventListener('click', () => messageBox.classList.add('d-none'));
 
-// --- Initial Load ---
+// --- Initial Load Logic ---
 
 document.addEventListener('DOMContentLoaded', () => {
   const savedData = loadFromLocalStorage();
-  if (savedData) {
+  if (savedData && savedData.length > 0) { // Check if savedData is not null/empty
     allUrls = savedData;
     initializeData();
     loading.classList.add('d-none');
+    showMessage('Data loaded from local storage.', 'info');
   } else {
-    fetchUrls();
+    fetchUrls(); // Fetch from JSON if no saved data or saved data is empty
   }
 });
