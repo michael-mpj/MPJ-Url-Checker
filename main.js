@@ -117,6 +117,7 @@ function renderPage() {
 
     const urlEl = document.createElement('p');
     urlEl.className = 'card-text small text-muted text-truncate mb-2';
+    console.log('Rendering URL:', item.url);
     urlEl.textContent = item.url;
     urlEl.title = item.url;
 
