@@ -20,12 +20,15 @@ const uploadInput = document.getElementById('upload-json-input');
 const paginationContainer = document.getElementById('pagination-container');
 const messageBox = document.getElementById('messageBox');
 const messageText = document.getElementById('messageText');
+const messageCloseBtn = document.getElementById('messageCloseBtn');
 
 // --- Utility Functions ---
 
 function showMessage(message, type = 'info', duration = 3000) {
   messageText.textContent = message;
-  messageBox.className = `alert alert-${type} d-block`;
+  // Use classList for cleaner class management
+  messageBox.className = `alert alert-${type} position-fixed top-0 start-50 translate-middle-x mt-3 d-flex align-items-center`;
+  messageBox.classList.remove('d-none');
   setTimeout(() => messageBox.classList.add('d-none'), duration);
 }
 
@@ -47,7 +50,14 @@ function loadFromLocalStorage() {
 async function fetchUrls() {
   try {
     const res = await fetch('urldata.json');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+    // Check if the server returned JSON, not HTML or something else
+    const contentType = res.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new TypeError("Received non-JSON response. Please ensure 'urldata.json' exists and is served correctly.");
+    }
+
     allUrls = await res.json();
     saveToLocalStorage();
     initializeData();
@@ -260,8 +270,8 @@ uploadInput.onchange = e => {
   reader.onload = function (e) {
     try {
       allUrls = JSON.parse(e.target.result);
+      // saveToLocalStorage already calls localStorage.setItem, so the next line is redundant.
       saveToLocalStorage();
-      localStorage.setItem('iframeData', JSON.stringify(allUrls));
       initializeData();
       showMessage('Data loaded from uploaded file.', 'success');
       document.querySelector('.modal.show .btn-close')?.click();
@@ -271,6 +281,9 @@ uploadInput.onchange = e => {
   };
   reader.readAsText(file);
 };
+
+// Allow user to close the message box manually
+messageCloseBtn.onclick = () => messageBox.classList.add('d-none');
 
 // --- Initial Load ---
 
