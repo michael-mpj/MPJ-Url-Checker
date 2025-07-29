@@ -1,47 +1,55 @@
+// --- Constants & DOM Elements ---
+const ITEMS_PER_PAGE = 12;
 let allUrls = [];
 let filteredUrls = [];
 let currentPage = 1;
-const itemsPerPage = 12;
 
+// DOM Elements
 const iframeContainer = document.getElementById('iframe-container');
 const loading = document.getElementById('loading-indicator');
 const errorMsg = document.getElementById('error-message');
-const navControls = document.getElementById('nav-controls'); // Now in navbar
+const navControls = document.getElementById('nav-controls');
 const prevBtn = document.getElementById('prev-btn');
 const nextBtn = document.getElementById('next-btn');
-const pageInfo = document.getElementById('page-info'); // Now in navbar
+const pageInfo = document.getElementById('page-info');
 const areaFilter = document.getElementById('area-filter');
 const jsonDisplay = document.getElementById('jsonDataDisplay');
 const saveRawBtn = document.getElementById('save-raw-btn');
 const downloadBtn = document.getElementById('download-json-btn');
 const uploadInput = document.getElementById('upload-json-input');
-const paginationContainer = document.getElementById('pagination-container'); // New: for Bootstrap pagination UL
-
-// Custom message box elements
+const paginationContainer = document.getElementById('pagination-container');
 const messageBox = document.getElementById('messageBox');
 const messageText = document.getElementById('messageText');
 
-/**
- * Displays a message in a custom message box.
- * @param {string} message - The message to display.
- * @param {string} type - The type of message ('success', 'danger', 'info', 'warning').
- */
-function showMessage(message, type) {
+// --- Utility Functions ---
+
+function showMessage(message, type = 'info', duration = 3000) {
   messageText.textContent = message;
   messageBox.className = `alert alert-${type} d-block`;
-  setTimeout(() => {
-    messageBox.classList.add('d-none');
-  }, 3000); // Hide after 3 seconds
+  setTimeout(() => messageBox.classList.add('d-none'), duration);
 }
 
-/**
- * Fetches URLs from 'urldata.json' or uses saved data from localStorage.
- */
+function saveToLocalStorage() {
+  localStorage.setItem('iframeData', JSON.stringify(allUrls));
+}
+
+function loadFromLocalStorage() {
+  try {
+    const saved = localStorage.getItem('iframeData');
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+}
+
+// --- Data Fetching & Initialization ---
+
 async function fetchUrls() {
   try {
     const res = await fetch('urldata.json');
-    const data = await res.json();
-    allUrls = data;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    allUrls = await res.json();
+    saveToLocalStorage();
     initializeData();
   } catch (e) {
     errorMsg.classList.remove('d-none');
@@ -51,250 +59,191 @@ async function fetchUrls() {
   }
 }
 
-/**
- * Initializes data, filters, and renders the page.
- */
 function initializeData() {
   filteredUrls = [...allUrls];
   currentPage = 1;
   populateAreaFilter();
   renderPage();
-  navControls.style.display = 'flex'; // Ensure nav controls are visible
-  paginationContainer.style.display = 'block'; // Ensure pagination container is visible
+  navControls.style.display = 'flex';
+  paginationContainer.style.display = 'block';
 }
 
-/**
- * Populates the area filter dropdown with unique areas from allUrls.
- */
+// --- UI Rendering ---
+
 function populateAreaFilter() {
-  const areas = new Set(allUrls.map(item => item.area).filter(area => area)); // Get unique non-null areas
-  areaFilter.innerHTML = '<option value="all">All Areas</option>'; // Reset to default
-  areas.forEach(area => {
-    const option = document.createElement('option');
-    option.value = area;
-    option.textContent = area;
-    areaFilter.appendChild(option);
-  });
+  const areas = Array.from(new Set(allUrls.map(item => item.area).filter(Boolean)));
+  areaFilter.innerHTML = '<option value="all">All Areas</option>' +
+    areas.map(area => `<option value="${area}">${area}</option>`).join('');
 }
 
-/**
- * Renders the current page of URLs into the iframe container.
- */
 function renderPage() {
   iframeContainer.innerHTML = '';
-  const start = (currentPage - 1) * itemsPerPage;
-  const pageItems = filteredUrls.slice(start, start + itemsPerPage);
+  const start = (currentPage - 1) * ITEMS_PER_PAGE;
+  const pageItems = filteredUrls.slice(start, start + ITEMS_PER_PAGE);
 
-  if (pageItems.length === 0 && filteredUrls.length > 0 && currentPage > 1) {
-    // If no items on current page after filtering, go back one page
-    currentPage--;
-    renderPage();
-    return;
-  } else if (pageItems.length === 0 && filteredUrls.length === 0) {
+  if (filteredUrls.length === 0) {
     iframeContainer.innerHTML = '<p class="text-center text-muted col-12">No URLs found for the selected filter.</p>';
     updatePagination();
     return;
   }
+  if (pageItems.length === 0 && currentPage > 1) {
+    currentPage--;
+    renderPage();
+    return;
+  }
 
-  pageItems.forEach(item => {
-    const col = document.createElement('div');
-    col.className = 'col';
-
-    const card = document.createElement('div');
-    card.className = 'card h-100';
-
-    // Create footer for the card (formerly header)
-    const footer = document.createElement('div');
-    footer.className = 'card-footer bg-white border-top'; // Changed to card-footer
-
-    const labelEl = document.createElement('h6');
-    labelEl.className = 'card-title mb-1 text-primary';
-    labelEl.textContent = item.label || 'No Label';
-
-    const areaEl = document.createElement('p');
-    areaEl.className = 'card-text small mb-1';
-    areaEl.innerHTML = `<strong>Area:</strong> ${item.area || 'N/A'}`;
-
-    const urlEl = document.createElement('p');
-    urlEl.className = 'card-text small text-muted text-truncate mb-2';
-    console.log('Rendering URL:', item.url);
-    urlEl.textContent = item.url;
-    urlEl.title = item.url;
-
-    // Create a button group for actions
-    const btnGroup = document.createElement('div');
-    btnGroup.className = 'btn-group mt-2 w-100'; // w-100 to make it full width
-    btnGroup.setAttribute('role', 'group');
-    btnGroup.setAttribute('aria-label', 'URL Actions');
-
-    // Refresh URL button
-    const refreshBtn = document.createElement('button');
-    refreshBtn.type = 'button';
-    refreshBtn.className = 'btn btn-sm btn-outline-secondary';
-    refreshBtn.textContent = 'Refresh URL';
-
-    // Open in New Tab button
-    const openBtn = document.createElement('a');
-    openBtn.href = item.url;
-    openBtn.target = '_blank'; // Open in new tab
-    openBtn.className = 'btn btn-sm btn-outline-primary';
-    openBtn.textContent = 'Open in New Tab';
-
-    // Append buttons to the group
-    btnGroup.append(refreshBtn, openBtn);
-
-    footer.append(labelEl, areaEl, urlEl, btnGroup); // Append elements to the footer
-
-    const body = document.createElement('div');
-    body.className = 'card-body p-0';
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'iframe-wrapper';
-
-    const iframe = document.createElement('iframe');
-    iframe.src = item.url;
-    iframe.title = item.label || item.url;
-    iframe.style.visibility = 'hidden';
-
-    const spinner = document.createElement('div');
-    spinner.className = 'spinner-border text-primary position-absolute top-50 start-50 translate-middle';
-    spinner.setAttribute('role', 'status');
-    const spinnerText = document.createElement('span');
-    spinnerText.className = 'visually-hidden';
-    spinnerText.textContent = 'Loading...';
-    spinner.appendChild(spinnerText);
-
-    iframe.addEventListener('load', () => {
-      spinner.style.display = 'none';
-      iframe.style.visibility = 'visible';
-    });
-
-    // Add refresh functionality to the refresh button
-    refreshBtn.addEventListener('click', () => {
-      spinner.style.display = 'block'; // Show spinner
-      iframe.style.visibility = 'hidden'; // Hide iframe
-      iframe.src = 'about:blank'; // Clear iframe content to force reload
-      setTimeout(() => {
-        iframe.src = item.url; // Reload content
-      }, 10); // Small delay to ensure the iframe is cleared before reloading
-    });
-
-    wrapper.append(spinner, iframe);
-    body.appendChild(wrapper);
-    card.appendChild(body); // Append the body (with iframe) first
-    card.appendChild(footer); // Append the created footer last
-    col.appendChild(card);
-    iframeContainer.appendChild(col);
-  });
-
+  pageItems.forEach(item => iframeContainer.appendChild(createUrlCard(item)));
   updatePagination();
 }
 
-/**
- * Handles changing the current page and re-rendering.
- * @param {number} page - The page number to navigate to.
- */
-function goToPage(page) {
-  currentPage = page;
-  renderPage();
-  window.scrollTo(0, 0); // Scroll to top for clarity
+function createUrlCard(item) {
+  const col = document.createElement('div');
+  col.className = 'col';
+
+  const card = document.createElement('div');
+  card.className = 'card h-100';
+
+  // Card Footer
+  const footer = document.createElement('div');
+  footer.className = 'card-footer bg-white border-top';
+  footer.innerHTML = `
+    <h6 class="card-title mb-1 text-primary">${item.label || 'No Label'}</h6>
+    <p class="card-text small mb-1"><strong>Area:</strong> ${item.area || 'N/A'}</p>
+    <p class="card-text small text-muted text-truncate mb-2" title="${item.url}">${item.url}</p>
+  `;
+
+  // Button Group
+  const btnGroup = document.createElement('div');
+  btnGroup.className = 'btn-group mt-2 w-100';
+  btnGroup.role = 'group';
+
+  // Refresh Button
+  const refreshBtn = document.createElement('button');
+  refreshBtn.type = 'button';
+  refreshBtn.className = 'btn btn-sm btn-outline-secondary';
+  refreshBtn.textContent = 'Refresh URL';
+
+  // Open in New Tab Button
+  const openBtn = document.createElement('a');
+  openBtn.href = item.url;
+  openBtn.target = '_blank';
+  openBtn.className = 'btn btn-sm btn-outline-primary';
+  openBtn.textContent = 'Open in New Tab';
+
+  btnGroup.append(refreshBtn, openBtn);
+  footer.appendChild(btnGroup);
+
+  // Card Body with Iframe
+  const body = document.createElement('div');
+  body.className = 'card-body p-0';
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'iframe-wrapper';
+
+  const iframe = document.createElement('iframe');
+  iframe.src = item.url;
+  iframe.title = item.label || item.url;
+  iframe.style.visibility = 'hidden';
+
+  const spinner = document.createElement('div');
+  spinner.className = 'spinner-border text-primary position-absolute top-50 start-50 translate-middle';
+  spinner.role = 'status';
+  spinner.innerHTML = '<span class="visually-hidden">Loading...</span>';
+
+  iframe.addEventListener('load', () => {
+    spinner.style.display = 'none';
+    iframe.style.visibility = 'visible';
+  });
+
+  refreshBtn.addEventListener('click', () => {
+    spinner.style.display = 'block';
+    iframe.style.visibility = 'hidden';
+    iframe.src = 'about:blank';
+    setTimeout(() => { iframe.src = item.url; }, 10);
+  });
+
+  wrapper.append(spinner, iframe);
+  body.appendChild(wrapper);
+  card.append(body, footer);
+  col.appendChild(card);
+  return col;
 }
 
-/**
- * Updates the pagination information and button states.
- */
 function updatePagination() {
-  const totalPages = Math.ceil(filteredUrls.length / itemsPerPage);
-  pageInfo.textContent = `Page ${currentPage} of ${totalPages || 1}`; // Update navbar page info
+  const totalPages = Math.max(1, Math.ceil(filteredUrls.length / ITEMS_PER_PAGE));
+  pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
 
   const paginationUl = paginationContainer.querySelector('.pagination');
-  paginationUl.innerHTML = ''; // Clear existing pagination items
+  paginationUl.innerHTML = '';
 
-  // Previous button for bottom pagination
+  // Previous
   const prevLi = document.createElement('li');
-  prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
-  prevLi.innerHTML = `<a class="page-link" href="#" tabindex="-1" aria-disabled="${currentPage === 1}">Previous</a>`;
-  prevLi.addEventListener('click', (e) => {
-    e.preventDefault();
-    if (currentPage > 1) {
-      goToPage(currentPage - 1);
-    }
-  });
+  prevLi.className = `page-item${currentPage === 1 ? ' disabled' : ''}`;
+  prevLi.innerHTML = `<a class="page-link" href="#">Previous</a>`;
+  prevLi.onclick = e => { e.preventDefault(); if (currentPage > 1) goToPage(currentPage - 1); };
   paginationUl.appendChild(prevLi);
 
-  // Page numbers for bottom pagination
-  for (let i = 1; i <= totalPages; i++) {
+  // Page Numbers (show max 5 pages for brevity)
+  let start = Math.max(1, currentPage - 2);
+  let end = Math.min(totalPages, start + 4);
+  if (end - start < 4) start = Math.max(1, end - 4);
+  for (let i = start; i <= end; i++) {
     const pageLi = document.createElement('li');
-    pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
+    pageLi.className = `page-item${i === currentPage ? ' active' : ''}`;
     pageLi.innerHTML = `<a class="page-link" href="#">${i}</a>`;
-    pageLi.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (i !== currentPage) {
-        goToPage(i);
-      }
-    });
+    pageLi.onclick = e => { e.preventDefault(); if (i !== currentPage) goToPage(i); };
     paginationUl.appendChild(pageLi);
   }
 
-  // Next button for bottom pagination
+  // Next
   const nextLi = document.createElement('li');
-  nextLi.className = `page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}`;
-  nextLi.innerHTML = `<a class="page-link" href="#" tabindex="-1" aria-disabled="${currentPage === totalPages || totalPages === 0}">Next</a>`;
-  nextLi.addEventListener('click', (e) => {
-    e.preventDefault();
-    if (currentPage < totalPages) {
-      goToPage(currentPage + 1);
-    }
-  });
+  nextLi.className = `page-item${currentPage === totalPages ? ' disabled' : ''}`;
+  nextLi.innerHTML = `<a class="page-link" href="#">Next</a>`;
+  nextLi.onclick = e => { e.preventDefault(); if (currentPage < totalPages) goToPage(currentPage + 1); };
   paginationUl.appendChild(nextLi);
 
-  // Update navbar buttons' disabled state
   prevBtn.disabled = currentPage === 1;
-  nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+  nextBtn.disabled = currentPage === totalPages;
 }
 
-
-// Event Listeners for navbar buttons
-prevBtn.addEventListener('click', () => {
-  if (currentPage > 1) {
-    goToPage(currentPage - 1);
-  }
-});
-
-nextBtn.addEventListener('click', () => {
-  const totalPages = Math.ceil(filteredUrls.length / itemsPerPage);
-  if (currentPage < totalPages) {
-    goToPage(currentPage + 1);
-  }
-});
-
-areaFilter.addEventListener('change', () => {
-  const selectedArea = areaFilter.value;
-  if (selectedArea === 'all') {
-    filteredUrls = [...allUrls];
-  } else {
-    filteredUrls = allUrls.filter(item => item.area === selectedArea);
-  }
-  currentPage = 1; // Reset to first page on filter change
+function goToPage(page) {
+  currentPage = page;
   renderPage();
-});
+  window.scrollTo(0, 0);
+}
 
-document.querySelector('[data-bs-target="#rawDataModal"]').addEventListener('click', () => {
+// --- Event Listeners ---
+
+prevBtn.onclick = () => currentPage > 1 && goToPage(currentPage - 1);
+nextBtn.onclick = () => {
+  const totalPages = Math.ceil(filteredUrls.length / ITEMS_PER_PAGE);
+  if (currentPage < totalPages) goToPage(currentPage + 1);
+};
+
+areaFilter.onchange = () => {
+  filteredUrls = areaFilter.value === 'all'
+    ? [...allUrls]
+    : allUrls.filter(item => item.area === areaFilter.value);
+  currentPage = 1;
+  renderPage();
+};
+
+document.querySelector('[data-bs-target="#rawDataModal"]').onclick = () => {
   jsonDisplay.value = JSON.stringify(allUrls, null, 2);
-});
+};
 
-saveRawBtn.addEventListener('click', () => {
+saveRawBtn.onclick = () => {
   try {
     allUrls = JSON.parse(jsonDisplay.value);
-    initializeData(); // Re-initialize data after saving
-    localStorage.setItem('iframeData', JSON.stringify(allUrls));
+    saveToLocalStorage();
+    initializeData();
     showMessage('Data updated successfully.', 'success');
-  } catch (err) {
+  } catch {
     showMessage('Invalid JSON format. Please fix and try again.', 'danger');
   }
-});
+};
 
-downloadBtn.addEventListener('click', () => {
+downloadBtn.onclick = () => {
   const blob = new Blob([JSON.stringify(allUrls, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -302,37 +251,36 @@ downloadBtn.addEventListener('click', () => {
   a.download = 'urldata.json';
   a.click();
   URL.revokeObjectURL(url);
-});
+};
 
-uploadInput.addEventListener('change', (e) => {
+uploadInput.onchange = e => {
   const file = e.target.files[0];
   if (!file) return;
-
   const reader = new FileReader();
   reader.onload = function (e) {
     try {
       allUrls = JSON.parse(e.target.result);
-      initializeData(); // Re-initialize data after uploading
+      saveToLocalStorage();
+      localStorage.setItem('iframeData', JSON.stringify(allUrls));
+      initializeData();
       showMessage('Data loaded from uploaded file.', 'success');
-    } catch (err) {
+      document.querySelector('.modal.show .btn-close')?.click();
+    } catch {
       showMessage('Error parsing uploaded file.', 'danger');
     }
   };
   reader.readAsText(file);
-});
+};
 
-// Initial data load on DOMContentLoaded
+// --- Initial Load ---
+
 document.addEventListener('DOMContentLoaded', () => {
-  const savedData = localStorage.getItem('iframeData');
+  const savedData = loadFromLocalStorage();
   if (savedData) {
-    try {
-      allUrls = JSON.parse(savedData);
-      initializeData(); // Initialize with saved data
-    } catch (e) {
-      console.error("Error parsing saved data, fetching from JSON.", e);
-      fetchUrls(); // Fallback to fetching if saved data is corrupt
-    }
+    allUrls = savedData;
+    initializeData();
+    loading.classList.add('d-none');
   } else {
-    fetchUrls(); // Fetch if no saved data
+    fetchUrls();
   }
 });
