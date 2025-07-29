@@ -1,3 +1,4 @@
+// --- main.js ---
 // --- Constants & DOM Elements ---
 const ITEMS_PER_PAGE = 12;
 let allUrls = [];

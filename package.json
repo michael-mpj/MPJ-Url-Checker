@@ -17,5 +17,9 @@
     "url": "https://github.com/michael-mpj/MPJ-Url-Checker/issues"
   },
   "homepage": "https://github.com/michael-mpj/MPJ-Url-Checker#readme",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "@vercel/analytics": "^1.5.0",
+    "@vercel/speed-insights": "^1.2.0"
+  }
 }
