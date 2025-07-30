@@ -1,7 +1,7 @@
 // --- main.js - Better Version ---
 
 // --- Constants & DOM Elements ---
-const ITEMS_PER_PAGE = 12; // Number of items to display per page
+const ITEMS_PER_PAGE = 100; // Number of items to display per page
 let allUrls = []; // Stores all fetched URLs
 let filteredUrls = []; // Stores URLs after applying filters
 let currentPage = 1; // Current page number
@@ -235,7 +235,7 @@ function createUrlCard(item) {
 
   const iframe = document.createElement('iframe');
   // Initial src is set to about:blank to prevent immediate loading
-  iframe.src = 'about:blank';
+  iframe.src = item.url;
   iframe.title = item.label || item.url;
   iframe.style.visibility = 'hidden';
   iframe.loading = 'lazy'; // Native lazy loading for iframes
