@@ -60,6 +60,7 @@ function showMessage(message, type = 'info', duration = 3000) {
 function saveToLocalStorage() {
   try {
     localStorage.setItem('iframeData', JSON.stringify(allUrls));
+    // console.log("Data saved to localStorage.");
   } catch (e) {
     console.error("Failed to save to localStorage:", e);
     showMessage('Failed to save data locally. Your browser might be in private mode or storage is full.', 'warning');
@@ -93,6 +94,7 @@ async function fetchUrls() {
   try {
     const res = await fetch('urldata.json');
     if (!res.ok) {
+      // More specific error for HTTP issues
       throw new Error(`HTTP error! Status: ${res.status}. Please ensure 'urldata.json' exists on the server.`);
     }
 
@@ -111,8 +113,9 @@ async function fetchUrls() {
     console.error("Error fetching URLs:", e);
     errorMsg.classList.remove('d-none');
     document.getElementById('error-text').textContent = `Failed to load URLs: ${e.message}.`;
-    allUrls = [];
-    initializeData();
+    // Optionally load a default empty state or show specific instruction
+    allUrls = []; // Clear any potentially bad data
+    initializeData(); // Initialize with empty data to allow user interaction
   } finally {
     loading.classList.add('d-none'); // Hide loading indicator
   }
@@ -122,11 +125,13 @@ async function fetchUrls() {
  * Initializes/resets the data, populates filters, and renders the first page.
  */
 function initializeData() {
-  filteredUrls = [...allUrls];
-  populateAreaFilter();
-  renderAllUrls();
+  filteredUrls = [...allUrls]; // Reset filteredUrls to allUrls
+  populateAreaFilter(); // Repopulate filter based on allUrls
+  renderAllUrls(); // Render all URLs (no pagination)
+  // Hide navigation and pagination controls
   if (navControls) navControls.style.display = 'none';
   if (paginationContainer) paginationContainer.style.display = 'none';
+  // Ensure the modal's textarea is updated if it's currently open
   if (jsonDisplay && jsonDisplay.closest('.modal.show')) {
     jsonDisplay.value = JSON.stringify(allUrls, null, 2);
   }
@@ -139,10 +144,12 @@ function initializeData() {
  */
 function populateAreaFilter() {
   const areas = Array.from(new Set(allUrls.map(item => item.area).filter(Boolean)));
+  // Sort areas alphabetically for better UX
   areas.sort((a, b) => a.localeCompare(b));
   areaFilter.innerHTML = '<option value="all">All Areas</option>' +
     areas.map(area => `<option value="${escapeHTML(area)}">${escapeHTML(area)}</option>`).join('');
-  areaFilter.value = 'all';
+  // Set the filter back to 'all' or the currently selected value if it still exists
+  areaFilter.value = 'all'; // Reset filter on data change
 }
 
 /**
@@ -168,11 +175,12 @@ function createUrlCard(item) {
   col.className = 'col';
 
   const card = document.createElement('div');
-  card.className = 'card h-100 shadow-sm';
+  card.className = 'card h-100 shadow-sm'; // Added shadow for better visual
 
   // Card Footer
   const footer = document.createElement('div');
   footer.className = 'card-footer bg-white border-top';
+  // Use text-break for long URLs and `text-muted` for smaller text
   footer.innerHTML = `
     <h6 class="card-title mb-1 text-primary">${escapeHTML(item.label || 'No Label')}</h6>
     <p class="card-text small mb-1"><strong>Area:</strong> ${escapeHTML(item.area || 'N/A')}</p>
@@ -198,7 +206,7 @@ function createUrlCard(item) {
   openBtn.className = 'btn btn-sm btn-outline-primary';
   openBtn.textContent = 'Open in New Tab';
   openBtn.setAttribute('aria-label', `Open ${item.label || item.url} in new tab`);
-  openBtn.setAttribute('rel', 'noopener noreferrer');
+  openBtn.setAttribute('rel', 'noopener noreferrer'); // Security improvement
 
   btnGroup.append(refreshBtn, openBtn);
   footer.appendChild(btnGroup);
@@ -208,23 +216,20 @@ function createUrlCard(item) {
   body.className = 'card-body p-0';
 
   const wrapper = document.createElement('div');
-  wrapper.className = 'iframe-wrapper position-relative';
+  wrapper.className = 'iframe-wrapper';
 
   const iframe = document.createElement('iframe');
+  // Initial src is set to about:blank to prevent immediate loading
   iframe.src = 'about:blank';
   iframe.title = item.label || item.url;
   iframe.style.visibility = 'hidden';
-  iframe.loading = 'lazy';
-  iframe.setAttribute('data-src', item.url);
+  iframe.loading = 'lazy'; // Native lazy loading for iframes
+  iframe.setAttribute('data-src', item.url); // Store the actual URL in a data attribute
 
   const spinner = document.createElement('div');
   spinner.className = 'spinner-border text-primary position-absolute top-50 start-50 translate-middle';
   spinner.role = 'status';
   spinner.innerHTML = '<span class="visually-hidden">Loading...</span>';
-
-  wrapper.appendChild(iframe);
-  wrapper.appendChild(spinner);
-  body.appendChild(wrapper);
 
   // Use shared IntersectionObserver
   iframeObserver.observe(iframe);
@@ -234,9 +239,12 @@ function createUrlCard(item) {
     iframe.style.visibility = 'visible';
   });
 
+  // Handle potential iframe load errors (e.g., cross-origin restrictions)
+  // Overlay error message instead of replacing wrapper content
   iframe.addEventListener('error', () => {
     spinner.style.display = 'none';
     iframe.style.visibility = 'visible';
+    // Only add overlay if not already present
     if (!wrapper.querySelector('.iframe-error-overlay')) {
       const overlay = document.createElement('div');
       overlay.className = 'iframe-error-overlay alert alert-warning text-center m-2 position-absolute w-100 h-100 d-flex flex-column justify-content-center align-items-center';
@@ -248,7 +256,7 @@ function createUrlCard(item) {
       overlay.innerHTML = `
         <i class="fas fa-exclamation-triangle me-1"></i>
         Cannot display content due to security policies (X-Frame-Options).<br>
-        <small>Try "Open in New Tab".</small>
+        <small>Try \"Open in New Tab\".</small>
       `;
       wrapper.appendChild(overlay);
     }
@@ -257,17 +265,22 @@ function createUrlCard(item) {
   refreshBtn.addEventListener('click', () => {
     spinner.style.display = 'block';
     iframe.style.visibility = 'hidden';
-    iframe.src = 'about:blank';
+    iframe.src = 'about:blank'; // Reset iframe src
     setTimeout(() => {
-      iframe.src = item.url;
+      iframe.src = item.url; // Reload content
     }, 10);
   });
 
-  card.appendChild(body);
-  card.appendChild(footer);
+  wrapper.append(spinner, iframe);
+  body.appendChild(wrapper);
+  card.append(body, footer);
   col.appendChild(card);
   return col;
 }
+
+
+
+
 
 /**
  * Escapes HTML characters to prevent XSS.
@@ -283,11 +296,12 @@ function escapeHTML(str) {
 
 // --- Event Listeners ---
 
-areaFilter.addEventListener('change', () => {
+
+
   const selectedArea = areaFilter.value;
-  filteredUrls = selectedArea === 'all'
-    ? [...allUrls]
-    : allUrls.filter(item => item.area === selectedArea);
+  filteredUrls = selectedArea === 'all' ?
+    [...allUrls] :
+    allUrls.filter(item => item.area === selectedArea);
   renderAllUrls();
 });
 
@@ -301,10 +315,11 @@ saveRawBtn.addEventListener('click', () => {
     if (!Array.isArray(parsedData)) {
       throw new Error('Parsed data is not a valid JSON array.');
     }
-    allUrls = parsedData;
-    saveToLocalStorage();
-    initializeData();
+    allUrls = parsedData; // Update global data
+    saveToLocalStorage(); // Save updated data
+    initializeData(); // Re-initialize UI with new data
     showMessage('Data updated successfully from raw JSON.', 'success');
+    // Close the modal after successful save
     const rawDataModal = bootstrap.Modal.getInstance(document.getElementById('rawDataModal'));
     if (rawDataModal) rawDataModal.hide();
   } catch (e) {
@@ -320,10 +335,10 @@ downloadBtn.addEventListener('click', () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'jbr_urldata.json';
-  document.body.appendChild(a);
+  a.download = 'jbr_urldata.json'; // More descriptive filename
+  document.body.appendChild(a); // Append to body for Firefox compatibility
   a.click();
-  document.body.removeChild(a);
+  document.body.removeChild(a); // Clean up
   URL.revokeObjectURL(url);
   showMessage('JSON data downloaded successfully.', 'info');
 });
@@ -336,6 +351,7 @@ uploadInput.addEventListener('change', (e) => {
   }
   if (file.type !== 'application/json') {
     showMessage('Invalid file type. Please upload a JSON file (.json).', 'danger');
+    // Clear the input to allow re-uploading the same file if it was an accident
     e.target.value = '';
     return;
   }
@@ -351,34 +367,36 @@ uploadInput.addEventListener('change', (e) => {
       saveToLocalStorage();
       initializeData();
       showMessage('Data loaded from uploaded file.', 'success');
+      // Programmatically close the modal if it's open
       const rawDataModal = bootstrap.Modal.getInstance(document.getElementById('rawDataModal'));
       if (rawDataModal) rawDataModal.hide();
-      e.target.value = '';
+      e.target.value = ''; // Clear input for next upload
     } catch (error) {
       console.error("Error parsing uploaded file:", error);
       showMessage(`Error parsing uploaded file: ${error.message}. Please ensure it's valid JSON.`, 'danger', 5000);
-      e.target.value = '';
+      e.target.value = ''; // Clear input on error
     }
   };
   reader.onerror = () => {
     showMessage('Error reading file. Please try again.', 'danger');
-    e.target.value = '';
+    e.target.value = ''; // Clear input on error
   };
   reader.readAsText(file);
 });
 
+// Allow user to close the message box manually
 messageCloseBtn.addEventListener('click', () => messageBox.classList.add('d-none'));
 
 // --- Initial Load Logic ---
 
 document.addEventListener('DOMContentLoaded', () => {
   const savedData = loadFromLocalStorage();
-  if (savedData && savedData.length > 0) {
+  if (savedData && savedData.length > 0) { // Check if savedData is not null/empty
     allUrls = savedData;
     initializeData();
     loading.classList.add('d-none');
     showMessage('Data loaded from local storage.', 'info');
   } else {
-    fetchUrls();
+    fetchUrls(); // Fetch from JSON if no saved data or saved data is empty
   }
 });
