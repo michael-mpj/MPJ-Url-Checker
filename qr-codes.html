@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JBR Location QR Codes</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" xintegrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <!-- Font Awesome CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Inter font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+            padding-top: 56px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .qr-card {
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.10);
+            transition: transform 0.2s, box-shadow 0.2s;
+            overflow: hidden;
+        }
+        .qr-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 1rem 2rem rgba(0,0,0,0.15);
+        }
+        .qr-card-body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 1rem 1rem 1rem;
+            background: #fff;
+        }
+        .qr-label {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .qr-download-group {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+        .qr-svg { /* Only qr-svg is used for display */
+            display: block;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 0.5rem;
+            width: 256px;
+            height: 256px;
+        }
+        .qr-svg svg { /* Style the SVG element directly */
+            width: 100%;
+            height: 100%;
+            display: block; /* Remove extra space below SVG */
+        }
+        @media (max-width: 576px) {
+            .qr-svg {
+                width: 100%;
+                height: auto; /* Allow height to adjust proportionally */
+            }
+        }
+    </style>
+    <!-- QR Code Library CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/qrjs2/qrjs2.min.js"></script>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand text-primary fw-bold" href="#">JBR QR Codes</a>
+        </div>
+    </nav>
+
+    <main class="container my-5 flex-grow-1">
+        <h1 class="text-center mb-4 text-primary">Jumeirah Beach Residence Locations QR Codes</h1>
+        <p class="text-center text-muted mb-5">Scan or download the QR codes below to quickly access the specific JBR location pages.</p>
+        <div id="qr-codes-container" class="row g-4">
+            <!-- QR code cards will be inserted here -->
+        </div>
+    </main>
+
+    <footer class="bg-dark text-white text-center py-3 mt-auto">
+        Michael MPJ's JBR URL Viewer &copy; <span id="current-year"></span>
+        <br>
+        <a href="https://github.com/michael-mpj/MPJ-Url-Checker" class="text-white" target="_blank" rel="noopener noreferrer">
+            <i class="fab fa-github"></i> View on GitHub
+        </a>
+        <br>
+        <small class="text-muted">Built with <i class="fas fa-heart text-danger"></i> by MPJ</small>
+    </footer>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" xintegrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+    <script>
+        // Inline JSON Data
+        const locationsData = [
+            { "label": "Murjan 1", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan1" },
+            { "label": "Murjan 2", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan2" },
+            { "label": "Murjan 3", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan3" },
+            { "label": "Murjan 4", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan4" },
+            { "label": "Murjan 5", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan5" },
+            { "label": "Murjan 6", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan6" },
+            { "label": "Murjan 7", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan7" },
+            { "label": "Murjan 8", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan8" },
+            { "label": "Murjan 9", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan9" },
+            { "label": "Murjan 10", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan10" },
+            { "label": "Murjan 11", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan11" },
+            { "label": "Murjan 12", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan12" },
+            { "label": "Murjan 13", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan13" },
+            { "label": "Murjan 14", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan14" },
+            { "label": "Murjan 15", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan15" },
+            { "label": "Murjan 16", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjan16" },
+            { "label": "Murjan Ground", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjanground" },
+            { "label": "Murjan Lift Ground 1", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjanliftground1" },
+            { "label": "Murjan Lift Ground 2", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjanliftground2" },
+            { "label": "Murjan Lift Ground 3", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjanliftground3" },
+            { "label": "Murjan Lift Plaza 1", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjanliftplaza1" },
+            { "label": "Murjan Lift Plaza 2", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjanliftplaza2" },
+            { "label": "Murjan Lift Plaza 3", "area": "Murjan", "url": "https://jbr.ae/jbr/index.html?location=murjanliftplaza3" },
+            { "label": "Sadaf 1", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadaf1" },
+            { "label": "Sadaf 2", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadaf2" },
+            { "label": "Sadaf 3", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadaf3" },
+            { "label": "Sadaf 4", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadaf4" },
+            { "label": "Sadaf 5", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadaf5" },
+            { "label": "Sadaf 6", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadaf6" },
+            { "label": "Sadaf 7", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadaf7" },
+            { "label": "Sadaf 8", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadaf8" },
+            { "label": "Sadaf 9", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadaf9" },
+            { "label": "Sadaf Ground", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadafground" },
+            { "label": "Sadaf Lift Ground 1", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadafliftground1" },
+            { "label": "Sadaf Lift Ground 2", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadafliftground2" },
+            { "label": "Sadaf Lift Ground 3", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadafliftground3" },
+            { "label": "Sadaf Lift Plaza 1", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadafliftplaza1" },
+            { "label": "Sadaf Lift Plaza 2", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadafliftplaza2" },
+            { "label": "Sadaf Lift Plaza 3", "area": "Sadaf", "url": "https://jbr.ae/jbr/index.html?location=sadafliftplaza3" },
+            { "label": "Bahar 1", "area": "Bahar", "url": "https://jbr.ae/jbr/index.html?location=bahar1" },
+            { "label": "Bahar 2", "area": "Bahar", "url": "https://jbr.ae/jbr/index.html?location=bahar2" },
+            { "label": "Bahar 3", "area": "Bahar", "url": "https://jbr.ae/jbr/index.html?location=bahar3" },
+            { "label": "Bahar 4", "area": "Bahar", "url": "https://jbr.ae/jbr/index.html?location=bahar4" },
+            { "label": "Bahar 5", "area": "Bahar", "url": "https://jbr.ae/jbr/index.html?location=bahar5" },
+            { "label": "Bahar 6", "area": "Bahar", "url": "https://jbr.ae/jbr/index.html?location=bahar6" },
+            { "label": "Bahar 7", "area": "Bahar", "url": "https://jbr.ae/jbr/index.html?location=bahar7" },
+            { "label": "Bahar Ground", "area": "Bahar", "url": "https://jbr.ae/jbr/index.html?location=baharground" },
+            { "label": "Bahar Lift Ground 1", "area": "Bahar", "url": "https://jbr.ae/jbr/index.html?location=baharliftground1" },
+            { "label": "Bahar Lift Ground 2", "area": "Bahar", "url": "https://jbr.ae/jbr/index.html?location=baharliftground2" },
+            { "label": "Bahar Lift Ground 3", "area": "Bahar", "url": "https://jbr.ae/jbr/index.html?location=baharliftground3" },
+            { "label": "Bahar Lift Plaza 1", "area": "Bahar", "url": "https://jbr.ae/jbr/index.html?location=baharliftplaza1" },
+            { "label": "Bahar Lift Plaza 2", "area": "Bahar", "url": "https://jbr.ae/jbr/index.html?location=baharliftplaza2" },
+            { "label": "Bahar Lift Plaza 3", "area": "Bahar", "url": "https://jbr.ae/jbr/index.html?location=baharliftplaza3" },
+            { "label": "Rimal 1", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimal1" },
+            { "label": "Rimal 2", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimal2" },
+            { "label": "Rimal 3", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimal3" },
+            { "label": "Rimal 4", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimal4" },
+            { "label": "Rimal 5", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimal5" },
+            { "label": "Rimal 6", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimal6" },
+            { "label": "Rimal 7", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimal7" },
+            { "label": "Rimal 8", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimal8" },
+            { "label": "Rimal Ground 1", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimalground1" },
+            { "label": "Rimal Ground 2", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimalground2" },
+            { "label": "Rimal Lift Ground 1", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimalliftground1" },
+            { "label": "Rimal Lift Ground 2", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimalliftground2" },
+            { "label": "Rimal Lift Ground 3", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimalliftground3" },
+            { "label": "Rimal Lift Ground 4", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimalliftground4" },
+            { "label": "Rimal Lift Plaza 1", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimalliftplaza1" },
+            { "label": "Rimal Lift Plaza 2", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimalliftplaza2" },
+            { "label": "Rimal Lift Plaza 3", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimalliftplaza3" },
+            { "label": "Rimal Lift Plaza 4", "area": "Rimal", "url": "https://jbr.ae/jbr/index.html?location=rimalliftplaza4" },
+            { "label": "Amwaj 1", "area": "Amwaj", "url": "https://jbr.ae/jbr/index.html?location=amwaj1" },
+            { "label": "Amwaj 2", "area": "Amwaj", "url": "https://jbr.ae/jbr/index.html?location=amwaj2" },
+            { "label": "Amwaj 3", "area": "Amwaj", "url": "https://jbr.ae/jbr/index.html?location=amwaj3" },
+            { "label": "Amwaj 4", "area": "Amwaj", "url": "https://jbr.ae/jbr/index.html?location=amwaj4" },
+            { "label": "Amwaj 5", "area": "Amwaj", "url": "https://jbr.ae/jbr/index.html?location=amwaj5" },
+            { "label": "Amwaj 6", "area": "Amwaj", "url": "https://jbr.ae/jbr/index.html?location=amwaj6" },
+            { "label": "Amwaj Ground", "area": "Amwaj", "url": "https://jbr.ae/jbr/index.html?location=amwajground" },
+            { "label": "Amwaj Lift Ground 1", "area": "Amwaj", "url": "https://jbr.ae/jbr/index.html?location=amwajliftground1" },
+            { "label": "Amwaj Lift Ground 2", "area": "Amwaj", "url": "https://jbr.ae/jbr/index.html?location=amwajliftground2" },
+            { "label": "Amwaj Lift Ground 3", "area": "Amwaj", "url": "https://jbr.ae/jbr/index.html?location=amwajliftground3" },
+            { "label": "Amwaj Lift Plaza 1", "area": "Amwaj", "url": "https://jbr.ae/jbr/index.html?location=amwajliftplaza1" },
+            { "label": "Amwaj Lift Plaza 2", "area": "Amwaj", "url": "https://jbr.ae/jbr/index.html?location=amwajliftplaza2" },
+            { "label": "Amwaj Lift Plaza 3", "area": "Amwaj",
+                "url": "https://jbr.ae/jbr/index.html?location=amwajliftplaza3"
+            },
+            { "label": "Shams 1", "area": "Shams", "url": "https://jbr.ae/jbr/index.html?location=shams1" },
+            { "label": "Shams 2", "area": "Shams", "url": "https://jbr.ae/jbr/index.html?location=shams2" },
+            { "label": "Shams Ground", "area": "Shams", "url": "https://jbr.ae/jbr/index.html?location=shamsground" },
+            { "label": "Shams Lift Ground 1", "area": "Shams", "url": "https://jbr.ae/jbr/index.html?location=shamsliftground1" },
+            { "label": "Shams Lift Ground 2", "area": "Shams", "url": "https://jbr.ae/jbr/index.html?location=shamsliftground2" },
+            { "label": "Shams Lift Plaza 1", "area": "Shams", "url": "https://jbr.ae/jbr/index.html?location=shamsliftplaza1" },
+            { "label": "Shams Lift Plaza 2", "area": "Shams", "url": "https://jbr.ae/jbr/index.html?location=shamsliftplaza2" }
+        ];
+
+        // Helper: Download data URL as a file
+        function downloadDataUrl(dataUrl, filename) {
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Function to convert SVG string to Canvas and then to Data URL (PNG/JPEG)
+        function svgToCanvasDataURL(svgString, type = 'image/png', quality = 0.9) {
+            return new Promise((resolve, reject) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                const img = new Image();
+                const dataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
+
+                img.onload = () => {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    try {
+                        const dataUrl = canvas.toDataURL(type, quality);
+                        resolve(dataUrl);
+                    } catch (e) {
+                        reject(new Error('Failed to convert canvas to data URL: ' + e.message));
+                    }
+                };
+
+                img.onerror = (error) => {
+                    console.error("Error loading SVG for canvas conversion:", error);
+                    reject(new Error('Failed to load SVG as image for canvas conversion.'));
+                };
+
+                img.src = dataUrl;
+            });
+        }
+
+        // Generate QR code cards and append them to the container
+        function generateQrCards() {
+            const container = document.getElementById('qr-codes-container');
+
+            if (!container) {
+                console.error("QR codes container not found!");
+                return;
+            }
+
+            locationsData.forEach(async (location, idx) => {
+                // Create Bootstrap column for responsiveness
+                const col = document.createElement('div');
+                col.className = 'col';
+
+                // Create Bootstrap card
+                const card = document.createElement('div');
+                card.className = 'card qr-card h-100'; // h-100 ensures consistent card height
+
+                const cardBody = document.createElement('div');
+                cardBody.className = 'card-body qr-card-body';
+
+                // Label for the QR code
+                const label = document.createElement('h5');
+                label.className = 'card-title qr-label';
+                label.textContent = location.label || location.area || 'QR Code';
+                cardBody.appendChild(label);
+
+                // SVG QR Code Display Container
+                const qrSvgContainer = document.createElement('div');
+                qrSvgContainer.className = 'qr-svg'; // Class for styling the SVG container
+
+                // Generate SVG using qrjs2 library
+                const svgString = QRJS.encode(location.url, { type: 'svg', margin: 4, size: 256 });
+                qrSvgContainer.innerHTML = svgString; // Insert the SVG string into the div
+                cardBody.appendChild(qrSvgContainer);
+
+                // Download buttons group
+                const btnGroup = document.createElement('div');
+                btnGroup.className = 'qr-download-group';
+
+                // PNG Download Button
+                const pngBtn = document.createElement('button');
+                pngBtn.className = 'btn btn-primary btn-sm';
+                pngBtn.innerHTML = '<i class="fas fa-download me-1"></i> PNG';
+                pngBtn.onclick = async () => {
+                    try {
+                        const pngDataUrl = await svgToCanvasDataURL(svgString, 'image/png');
+                        downloadDataUrl(pngDataUrl, `${location.label || 'qr'}-jbr.png`);
+                    } catch (error) {
+                        console.error("Error downloading PNG:", error);
+                    }
+                };
+
+                // JPG Download Button
+                const jpgBtn = document.createElement('button');
+                jpgBtn.className = 'btn btn-success btn-sm';
+                jpgBtn.innerHTML = '<i class="fas fa-download me-1"></i> JPG';
+                jpgBtn.onclick = async () => {
+                    try {
+                        const jpgDataUrl = await svgToCanvasDataURL(svgString, 'image/jpeg');
+                        downloadDataUrl(jpgDataUrl, `${location.label || 'qr'}-jbr.jpg`);
+                    } catch (error) {
+                        console.error("Error downloading JPG:", error);
+                    }
+                };
+
+                btnGroup.append(pngBtn, jpgBtn);
+                cardBody.appendChild(btnGroup);
+
+                card.appendChild(cardBody);
+                col.appendChild(card);
+                container.appendChild(col);
+            });
+        }
+
+        // Ensure the DOM is fully loaded before executing scripts
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('current-year').textContent = new Date().getFullYear();
+            generateQrCards();
+        });
+    </script>
+
+    <script>
+    // Service worker registration script, if you have manifest.json and service-worker.js
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(function(registration) {
+            console.log('Service Worker registered with scope:', registration.scope);
+          })
+          .catch(function(error) {
+            console.warn('Service Worker registration failed:', error);
+          });
+      });
+    }
+    </script>
+</body>
+</html>
