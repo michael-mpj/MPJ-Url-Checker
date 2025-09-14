@@ -188,7 +188,7 @@ function createUrlCard(item) {
   wrapper.className = 'iframe-wrapper';
 
   const iframe = document.createElement('iframe');
-  iframe.src = 'https://jbr.ae/jbr/index.html';
+  iframe.src = item.url;
   iframe.title = item.label || item.url;
   iframe.style.visibility = 'visible';
   iframe.loading = 'lazy';
