@@ -230,7 +230,6 @@ function createUrlCard(item) {
     spinner.style.display = 'block';
     iframe.style.visibility = 'visible';
     iframe.src = item.url;
-    setTimeout(() => { iframe.src = item.url; }, 10);
   });
 
   wrapper.append(spinner, iframe);
